@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Código Rojo: Maternidad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070d0c; --ink:#0b1514; --mint:#b9ffe0; --blood:#d4122f; --amber:#ffb000;
+  --bone:#e8efe9; --dim:#8fa8a2; --panel:rgba(8,18,17,.84); --ok:#37ff9a;
+  --display:'Barlow Condensed','Arial Narrow',Impact,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#000;color:var(--bone);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
+canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+button{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.04em;background:var(--blood);color:#fff;border:0;padding:12px 26px;cursor:pointer;border-radius:3px}
+button:hover{background:#f02444}
+button.alt{background:transparent;border:2px solid var(--dim);color:var(--bone)}
+button.alt:hover{border-color:var(--mint);color:var(--mint)}
+button:focus-visible,.role:focus-visible,.opt:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+/* overlays */
+.overlay{position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;background:radial-gradient(ellipse at 50% 20%,rgba(20,40,38,.92),rgba(3,7,7,.97));z-index:30;overflow:auto;padding:max(24px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom))}
+.overlay.on{display:flex}
+.sheet{width:min(980px,100%);margin:auto}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(40px,8vw,88px);line-height:.92;margin:0 0 6px;color:var(--blood);text-transform:uppercase;letter-spacing:.01em}
+h1 small{display:block;color:var(--bone);font-size:.42em;letter-spacing:.14em;margin-top:8px;font-weight:600}
+h2{font-family:var(--display);font-weight:800;font-size:clamp(28px,5vw,46px);margin:0 0 10px;color:var(--mint);line-height:1}
+h3{font-family:var(--display);font-weight:700;font-size:22px;margin:0 0 4px;color:var(--amber)}
+p{line-height:1.5;margin:0 0 10px;max-width:70ch;color:#cfe0da}
+.ecg{width:100%;height:46px;margin:6px 0 14px;display:block}
+.ecg path{fill:none;stroke:var(--blood);stroke-width:2.5;stroke-dasharray:900;stroke-dashoffset:900;animation:ecg 3.2s ease-out forwards}
+@keyframes ecg{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.ecg path{animation:none;stroke-dashoffset:0}}
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:18px 0}
+.role{background:#0f1f1d;border:2px solid #1e3632;padding:14px;cursor:pointer;border-radius:3px;text-align:left;color:var(--bone);font-family:var(--body);font-weight:400;font-size:15px;letter-spacing:0}
+.role:hover{border-color:var(--dim);background:#0f1f1d}
+.role.sel{border-color:var(--amber);background:#1a2a22}
+.role b{display:block;font-family:var(--display);font-size:26px;font-weight:800;line-height:1}
+.role em{display:block;font-style:normal;color:var(--dim);margin:2px 0 8px}
+.role .sw{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;vertical-align:-1px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:10px}
+.box{background:var(--panel);border-left:4px solid var(--blood);padding:12px 16px}
+.box.g{border-left-color:var(--ok)} .box.a{border-left-color:var(--amber)}
+kbd{background:#1e3632;border:1px solid #31524c;border-bottom-width:3px;border-radius:3px;padding:0 6px;font-family:var(--display);font-weight:700;font-size:15px}
+ul.k{list-style:none;padding:0;margin:0;line-height:1.9}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0}
+.stats div{background:var(--panel);padding:10px 12px}
+.stats b{display:block;font-family:var(--display);font-size:34px;color:var(--mint);line-height:1}
+.opt{display:block;width:100%;text-align:left;background:#0f1f1d;border:2px solid #1e3632;color:var(--bone);font-family:var(--body);font-size:17px;font-weight:500;letter-spacing:0;padding:12px 14px;margin:8px 0;border-radius:3px}
+.opt:hover:not(:disabled){border-color:var(--mint);background:#14302b}
+.opt.right{border-color:var(--ok);background:#0f3a26}
+.opt.wrong{border-color:var(--blood);background:#3a0f16}
+.opt:disabled{cursor:default}
+#qFb{min-height:20px;margin-top:10px}
+
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;display:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#hud.on{display:block}
+.hp-wrap{position:absolute;left:18px;bottom:18px;width:min(330px,60vw)}
+.nm{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.04em;text-shadow:0 2px 4px #000}
+.bar{height:14px;background:rgba(0,0,0,.6);border:1px solid #3d5a54;position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--ok);width:100%}
+.bar i.low{background:var(--amber)} .bar i.crit{background:var(--blood)}
+#hpNum{font-family:var(--display);font-weight:800;font-size:46px;line-height:.9;text-shadow:0 2px 6px #000}
+#team{position:absolute;left:18px;bottom:112px;width:min(240px,50vw)}
+#team .row{display:flex;align-items:center;gap:8px;margin-top:5px;font-family:var(--display);font-weight:700;font-size:16px;text-shadow:0 1px 3px #000}
+#team .row span{width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#team .row .bar{flex:1;height:9px}
+#team .row.dead{opacity:.45;text-decoration:line-through}
+.wp{position:absolute;right:18px;bottom:18px;text-align:right;text-shadow:0 2px 6px #000}
+#ammo{font-family:var(--display);font-weight:800;font-size:54px;line-height:.9}
+#weapon{font-family:var(--display);font-weight:700;font-size:20px;color:var(--mint)}
+.cg{position:absolute;right:18px;top:18px;width:min(250px,48vw);text-shadow:0 2px 4px #000}
+.cg .t{font-family:var(--display);font-weight:700;font-size:18px;display:flex;justify-content:space-between}
+.top{position:absolute;left:50%;top:14px;transform:translateX(-50%);text-align:center;width:min(560px,56vw);text-shadow:0 2px 6px #000}
+#sectorName{font-family:var(--display);font-weight:800;font-size:24px;color:var(--mint)}
+#obj{font-size:15px;color:var(--bone);line-height:1.3}
+#boss{display:none;margin-top:8px}
+#boss .bar{height:16px;border-color:#7a2230} #boss .bar i{background:var(--blood)}
+#boss div.l{font-family:var(--display);font-weight:800;font-size:18px;color:#ff6a7d;letter-spacing:.06em}
+#feed{position:absolute;left:18px;top:14px;width:min(380px,40vw);font-size:15px;line-height:1.3;text-shadow:0 1px 3px #000}
+#feed div{margin-bottom:4px;animation:fin .25s ease-out}
+@keyframes fin{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+#cross{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px}
+#cross:before,#cross:after{content:"";position:absolute;background:rgba(255,255,255,.85)}
+#cross:before{left:12px;top:0;width:2px;height:26px;clip-path:polygon(0 0,100% 0,100% 38%,0 38%,0 62%,100% 62%,100% 100%,0 100%)}
+#cross:after{top:12px;left:0;height:2px;width:26px;clip-path:polygon(0 0,38% 0,38% 100%,0 100%,62% 100%,62% 0,100% 0,100% 100%)}
+#hit{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border:2px solid #fff;transform:rotate(45deg);opacity:0;transition:opacity .12s}
+#hit.on{opacity:1}
+#hit.hs{border-color:var(--blood)}
+#vign{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,0,20,.85));opacity:0}
+#prompt{position:absolute;left:50%;top:62%;transform:translateX(-50%);font-family:var(--display);font-weight:700;font-size:24px;text-shadow:0 2px 6px #000;color:var(--amber);display:none}
+#ex{position:absolute;left:50%;top:70%;transform:translateX(-50%);width:min(320px,70vw);display:none;text-align:center;font-family:var(--display);font-weight:700;font-size:20px;color:var(--ok)}
+#ex .bar i{background:var(--ok)}
+#toast{position:absolute;right:18px;top:96px;width:min(340px,44vw);background:var(--panel);border-left:4px solid var(--amber);padding:10px 14px;display:none;pointer-events:none}
+#toast h3{margin-bottom:2px} #toast p{font-size:14px;margin-bottom:4px;color:#d7e6e0}
+#flash{position:absolute;inset:0;background:#fff;opacity:0}
+.help{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:12px;color:var(--dim);text-shadow:0 1px 2px #000;white-space:nowrap}
+@media (max-width:720px){#feed,#toast{display:none!important}.help{display:none}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <div id="feed"></div>
+  <div class="top">
+    <div id="sectorName"></div>
+    <div id="obj"></div>
+    <div id="boss"><div class="l">ECLAMPSIA</div><div class="bar"><i id="bossFill"></i></div></div>
+  </div>
+  <div class="cg">
+    <div class="t"><span>Kit neonatal</span><span id="cargoNum">100%</span></div>
+    <div class="bar"><i id="cargoFill"></i></div>
+    <div class="t" style="margin-top:6px"><span>Puntos</span><span id="scoreNum">0</span></div>
+  </div>
+  <div id="toast"></div>
+  <div id="cross"></div><div id="hit"></div>
+  <div id="prompt"></div>
+  <div id="ex"><div id="exLabel">Extrayendo…</div><div class="bar"><i id="exFill" style="width:0"></i></div></div>
+  <div id="team"></div>
+  <div class="hp-wrap">
+    <div class="nm" id="hpName"></div>
+    <div id="hpNum">100</div>
+    <div class="bar"><i id="hpFill"></i></div>
+  </div>
+  <div class="wp"><div id="weapon"></div><div id="ammo"></div></div>
+  <div class="help">WASD mover · Ratón apuntar · Clic disparar · 1/2 arma · F kit · Shift correr · P pausa</div>
+  <div id="vign"></div>
+  <div id="flash"></div>
+</div>
+
+<!-- MENÚ -->
+<div class="overlay on" id="menu"><div class="sheet">
+  <svg class="ecg" viewBox="0 0 900 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 H220 L236 28 L246 6 L258 42 L270 20 L282 28 H520 L536 28 L546 4 L560 44 L574 18 L586 28 H900"/></svg>
+  <h1>Código Rojo<small>MATERNIDAD</small></h1>
+  <p>Un fallo biocientífico alteró las hormonas de pacientes y personal. El hospital está en cuarentena. Atraviesa cinco sectores con tu equipo, protege el kit de reanimación neonatal y aprende obstetricia en el camino.</p>
+  <h3>Elige tu especialista</h3>
+  <div class="roles" id="roles"></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+    <button id="btnStart" disabled>Iniciar evacuación</button>
+    <span id="selHint" style="color:var(--dim)">Selecciona un especialista para empezar.</span>
+  </div>
+  <div class="cols" style="margin-top:22px">
+    <div class="box a"><h3>Controles</h3><ul class="k">
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> mover · <kbd>Shift</kbd> correr</li>
+      <li>Ratón apuntar · clic izquierdo disparar</li>
+      <li><kbd>1</kbd> pistola · <kbd>2</kbd> escopeta · <kbd>F</kbd> soltar/recoger kit</li>
+      <li>Flechas: girar la cámara si el ratón no se bloquea · <kbd>P</kbd> pausa · <kbd>M</kbd> silencio</li>
+    </ul></div>
+    <div class="box g"><h3>Proteger la carga</h3>
+      <p>Llevar el kit te impide disparar. Suéltalo con <kbd>F</kbd> para pelear y vuélvelo a recoger. Cada golpe que recibes mientras lo cargas daña la incubadora; si llega a 0%, la misión fracasa.</p>
+    </div>
+  </div>
+</div></div>
+
+<!-- BRIEFING -->
+<div class="overlay" id="brief"><div class="sheet">
+  <h2 id="bTitle"></h2>
+  <p id="bObj"></p>
+  <div class="cols">
+    <div class="box a"><h3>Infectados en este sector</h3><div id="bEnemies"></div></div>
+    <div class="box g"><h3>Para recordar</h3><p id="bLesson"></p></div>
+  </div>
+  <p style="margin-top:18px"><button id="btnGo">Entrar al sector</button></p>
+</div></div>
+
+<!-- QUIZ -->
+<div class="overlay" id="quiz"><div class="sheet" style="max-width:720px">
+  <h3 id="qHead">Sector superado</h3>
+  <h2 id="qText" style="font-size:clamp(22px,4vw,32px);color:var(--bone)"></h2>
+  <div id="qOpts"></div>
+  <div id="qFb"></div>
+  <p style="margin-top:10px"><button id="qNext" style="display:none">Continuar</button></p>
+</div></div>
+
+<!-- PAUSA -->
+<div class="overlay" id="pause"><div class="sheet" style="max-width:520px;text-align:center">
+  <h2>Pausa</h2>
+  <p style="margin:0 auto 16px">El hospital puede esperar unos segundos.</p>
+  <button id="btnResume">Continuar</button>
+</div></div>
+
+<!-- FIN -->
+<div class="overlay" id="end"><div class="sheet" style="max-width:760px">
+  <h1 id="eTitle" style="font-size:clamp(36px,7vw,68px)"></h1>
+  <p id="eText"></p>
+  <div class="stats" id="eStats"></div>
+  <div id="eLessons"></div>
+  <p style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap">
+    <button id="btnRetry">Reintentar sector</button>
+    <button class="alt" id="btnMenu">Menú principal</button>
+  </p>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* =====================  DATOS  ===================== */
+const W = 12, H = 3.4;
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const ROLES = [
+  {id:'obstetra', name:'Dra. Valdés', title:'Obstetra Senior', hp:120, speed:1, color:0x2e8bc0, heal:1.5, dmgTaken:.85, cargoLoss:1, ammo:18,
+   perk:'Experiencia clínica: recibe 15% menos daño y la oxitocina cura 50% más.'},
+  {id:'residente', name:'Dr. Ibarra', title:'Residente Exhausto', hp:85, speed:1.18, color:0xe0a030, heal:1, dmgTaken:1, cargoLoss:1, ammo:34,
+   perk:'Corre con café y adrenalina: más rápido y con más munición, pero frágil.'},
+  {id:'partera', name:'Rosa', title:'Partera de Campo', hp:105, speed:1, color:0x4caf6d, heal:1, dmgTaken:1, cargoLoss:.45, ammo:18,
+   perk:'Protege la carga: el kit neonatal recibe 55% menos daño.'},
+  {id:'anestesio', name:'Dr. Quispe', title:'Anestesiólogo', hp:100, speed:1, color:0x9b59b6, heal:1, dmgTaken:1, cargoLoss:1, ammo:18, slow:true,
+   perk:'Dardos sedantes: ralentizan a los infectados y hacen +25% de daño a la Eclampsia.'}
+];
+
+const FICHAS = {
+  common:{t:'Paciente alterado',b:'Personal y pacientes con desregulación hormonal y conducta agresiva. Frágiles de uno en uno, peligrosos en horda.',tip:'Apunta a la cabeza: el daño se duplica.'},
+  toxemico:{t:'Toxémico · Preeclampsia',b:'Hipertensión (≥140/90 mmHg) después de la semana 20 con proteinuria o daño de órgano. Señales de alarma: cefalea intensa, visión borrosa, dolor epigástrico y edema.',tip:'Escupe ácido: sal del charco y mátalo rápido.'},
+  monitor:{t:'Monitor Obsesivo · Cardiotocografía',b:'La frecuencia cardíaca fetal normal es 110–160 lpm. Más de 160 es taquicardia; menos de 110, bradicardia. Se interpreta el trazado completo, no solo un número.',tip:'Cada alarma llama a más pacientes: silencialo ya.'},
+  contraccion:{t:'Contracción · Trabajo de parto',b:'En trabajo de parto activo las contracciones son regulares, cada 2–3 minutos. Más de 5 en 10 minutos (taquisistolia) puede comprometer la oxigenación fetal.',tip:'Te arrastra y te aplasta: dispárale para liberarte.'},
+  eclampsia:{t:'Eclampsia · el Tank',b:'Convulsiones tónico-clónicas en una paciente con preeclampsia. El sulfato de magnesio es el fármaco de elección; se vigilan reflejos rotulianos, frecuencia respiratoria y diuresis.',tip:'Mucha vida y golpes brutales. Retrocede y dispara en equipo.'}
+};
+const CALL = {
+  toxemico:'¡Toxémico adelante! ¡No pisen el ácido!',
+  monitor:'¡Un Monitor! ¡Silencienlo antes de que llame a todos!',
+  contraccion:'¡Contracción a la vista! ¡Si te atrapa, dispárale!',
+  eclampsia:'¡¡ECLAMPSIA!! ¡Todos a disparar!'
+};
+const EN = {
+  common:{hp:30, speed:3.1, dmg:6, r:.5, pts:10},
+  toxemico:{hp:70, speed:2.4, r:.7, pts:100},
+  monitor:{hp:45, speed:2.3, r:.5, pts:100},
+  contraccion:{hp:55, speed:2.3, r:.5, pts:100},
+  eclampsia:{hp:450, speed:3.7, dmg:28, r:1, pts:500}
+};
+const WEAPONS = [
+  {name:'Pistola tranquilizante', rate:.28, dmg:22, pellets:1, spread:.006},
+  {name:'Escopeta de pulso', rate:.85, dmg:10, pellets:8, spread:.06, ammoKey:'shot'}
+];
+const SECTORS = [
+  {name:'Sector 1 · Urgencias y Admisión', len:70, fog:0x0b1614, fogFar:44, amb:0x4a6a64, floor:0x28403c, wall:0x3b5753, ceil:0x1d2c2a, stripe:0x2e8bc0, light:0xcfffe8,
+   pool:['toxemico'], obj:'Lleva el kit neonatal hasta el montacargas del fondo.',
+   lesson:'Preeclampsia: presión ≥140/90 mmHg después de la semana 20, con proteinuria o daño de órgano. Dolor de cabeza intenso, visión borrosa o dolor en el epigastrio son signos de alarma.'},
+  {name:'Sector 2 · Sala de Partos', len:80, fog:0x140e12, fogFar:42, amb:0x5a4a58, floor:0x3c2c3a, wall:0x5a3f52, ceil:0x241a22, stripe:0xd4647a, light:0xffd8e4,
+   pool:['toxemico','monitor'], obj:'Cruza las salas de parto. Silencia los monitores antes de que llamen a la horda.',
+   lesson:'La frecuencia cardíaca fetal normal es de 110 a 160 lpm. Se evalúa junto con variabilidad, aceleraciones y desaceleraciones, siempre en contexto clínico.'},
+  {name:'Sector 3 · UCI Neonatal', len:85, fog:0x0a1420, fogFar:40, amb:0x3f5f78, floor:0x22384a, wall:0x2f4b63, ceil:0x16222e, stripe:0x7fd0ff, light:0xd6efff,
+   pool:['toxemico','monitor','contraccion'], tank:true, obj:'Los prematuros dependen del kit. Cuidado: se acerca algo enorme.',
+   lesson:'Reanimación neonatal: calentar, secar, estimular y posicionar la vía aérea. Si tras 30 s de ventilación efectiva la FC es menor de 60 lpm, se inician compresiones (3:1).'},
+  {name:'Sector 4 · Quirófanos', len:90, fog:0x0f1710, fogFar:40, amb:0x4f6a4a, floor:0x2f3f2a, wall:0x44583c, ceil:0x1c2619, stripe:0xffb000, light:0xe6ffd0,
+   pool:['toxemico','monitor','contraccion'], tank:true, obj:'Atraviesa los quirófanos. El pasillo es largo y estrecho.',
+   lesson:'Eclampsia: convulsiones en una paciente con preeclampsia. El sulfato de magnesio es el tratamiento de elección; se vigilan reflejos rotulianos, respiración y diuresis. El antídoto es el gluconato de calcio.'},
+  {name:'Sector 5 · Azotea y Helipuerto', len:60, fog:0x0a1022, fogFar:60, amb:0x5a6a90, floor:0x30343c, wall:0x454a56, ceil:0x000000, stripe:0xffb000, light:0xaab8ff, roof:true, finale:true,
+   pool:['toxemico','monitor','contraccion'], obj:'Llega al helipuerto con el kit y resiste hasta que llegue el helicóptero.',
+   lesson:'Hemorragia posparto: la causa más frecuente es la atonía uterina. Primera respuesta: masaje uterino y uterotónicos como la oxitocina, mientras se buscan otras causas (las 4 T).'}
+];
+const QUIZ = [
+  {q:'Una paciente de 34 semanas llega con PA 160/110 mmHg, cefalea intensa y visión borrosa. ¿Cuál es el diagnóstico más probable?',
+   o:['Preeclampsia con criterios de severidad','Trabajo de parto pretérmino','Placenta previa','Colestasis intrahepática'], a:0,
+   e:'Hipertensión en el embarazo (≥140/90 tras la semana 20) con síntomas neurológicos o visuales apunta a preeclampsia severa. Requiere control de la presión y prevención de convulsiones.'},
+  {q:'¿Cuál es el rango normal de la frecuencia cardíaca fetal?',
+   o:['60–100 lpm','110–160 lpm','160–200 lpm','90–120 lpm'], a:1,
+   e:'110–160 lpm. Por encima de 160 es taquicardia fetal y por debajo de 110 bradicardia, y se valoran con el resto del trazado.'},
+  {q:'En la reanimación neonatal, tras 30 segundos de ventilación efectiva con presión positiva, la FC del bebé sigue por debajo de 60 lpm. ¿Qué haces?',
+   o:['Iniciar compresiones torácicas coordinadas con la ventilación (3:1)','Repetir solo la estimulación táctil','Suspender la ventilación','Dar bicarbonato de inmediato'], a:0,
+   e:'Con FC <60 lpm después de ventilación efectiva se inician compresiones con relación 3 compresiones : 1 ventilación y se asegura una ventilación adecuada.'},
+  {q:'¿Qué fármaco es de elección para prevenir y tratar las convulsiones de la eclampsia?',
+   o:['Sulfato de magnesio','Fenitoína','Nifedipino','Diazepam como primera línea'], a:0,
+   e:'El sulfato de magnesio. Se vigilan reflejos rotulianos, frecuencia respiratoria y diuresis; el antídoto de la intoxicación es el gluconato de calcio.'},
+  {q:'Tras el parto, la paciente sangra de forma abundante y el útero está blando. ¿Cuál es la causa más frecuente y la primera medida?',
+   o:['Atonía uterina: masaje uterino y uterotónicos (oxitocina)','Desgarro cervical: histerectomía inmediata','Restos placentarios: legrado en el pasillo','Coagulopatía: transfusión de plaquetas siempre'], a:0,
+   e:'La atonía uterina causa la mayoría de las hemorragias posparto. Se empieza con masaje uterino y oxitocina, y se revisan las otras causas (tono, trauma, tejido, trombina).'}
+];
+
+/* =====================  ESTADO  ===================== */
+let state = 'menu';
+let ZMAX = 4, ZMIN = -76, L = 70, ZC = {x:0, z:-72};
+let lvl = null, ents = null, colliders = [], lights = [];
+let enemies = [], bots = [], pickups = [], projs = [], pools = [], fx = [];
+let sectorIdx = 0, time = 0, vign = 0, shake = 0, muted = false, mouseDown = false;
+let lockFailed = false, lockedOnce = false, mx = 0, my = 0;
+let role = null, selRole = null, score = 0, kills = 0, quizOK = 0, seen = {}, snap = null, answered = [];
+let D = {}, fin = {state:'wait', t:0, chopper:null}, exitT = 0, toastT = 0, hitT = 0, nextHurtSnd = 0, nextAlarmNote = 0;
+const keys = {};
+const P = {pos:null, yaw:0, pitch:0, hp:100, alive:true, ammo:{shot:18}, weapon:0, nextShot:0, grab:null, bob:0, kick:0};
+const C = {carried:true, pos:null, integ:100, mesh:null};
+
+/* =====================  THREE  ===================== */
+const cv = $('cv');
+const renderer = new THREE.WebGLRenderer({canvas:cv, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, 1, .1, 120);
+camera.rotation.order = 'YXZ';
+scene.add(camera);
+const amb = new THREE.AmbientLight(0x4a6a64, .75);
+scene.add(amb);
+const flash = new THREE.SpotLight(0xe6faff, 1.1, 38, .6, .55, 1);
+flash.position.set(.2, -.1, 0);
+camera.add(flash);
+flash.target.position.set(0, 0, -10);
+camera.add(flash.target);
+const muzzle = new THREE.PointLight(0xffd080, 0, 12);
+camera.add(muzzle); muzzle.position.set(.2, -.1, -1);
+P.pos = new THREE.Vector3(0, 1.6, -1);
+C.pos = new THREE.Vector3();
+
+function resize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+const lam = (c, e) => new THREE.MeshLambertMaterial({color:c, emissive:e || 0});
+function mkBox(w, h, d, c, x, y, z, em){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lam(c, em));
+  m.position.set(x, y, z); return m;
+}
+
+/* viewmodel: arma y kit */
+const gun = new THREE.Group();
+gun.add(mkBox(.07, .09, .5, 0x1b2224, 0, 0, 0));
+gun.add(mkBox(.06, .16, .08, 0x2a3336, 0, -.1, .12));
+const barrel = mkBox(.04, .04, .3, 0x3d6b66, 0, .02, -.32); gun.add(barrel);
+gun.position.set(.26, -.24, -.5);
+camera.add(gun);
+
+C.mesh = new THREE.Group();
+C.mesh.add(mkBox(.55, .34, .34, 0xe8efe9, 0, 0, 0));
+C.mesh.add(mkBox(.14, .02, .36, 0xd4122f, 0, .18, 0));
+C.mesh.add(mkBox(.36, .02, .14, 0xd4122f, 0, .18, 0));
+C.mesh.add(mkBox(.5, .05, .05, 0x2e8bc0, 0, 0, .18));
+C.mesh.add(mkBox(.1, .1, .12, 0x37ff9a, .2, .02, .19, 0x0a6a3a));
+
+/* =====================  AUDIO  ===================== */
+let AC = null;
+function snd(f, dur, type, vol, slide){
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+    o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(25, f + slide), t + dur);
+    g.gain.setValueAtTime(vol || .05, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur);
+  } catch (e) {}
+}
+
+/* =====================  CONSTRUCCIÓN  ===================== */
+function bx(w, h, d, x, y, z, c, coll, em){
+  const m = mkBox(w, h, d, c, x, y, z, em); lvl.add(m);
+  if (coll) colliders.push({x0:x - w / 2, x1:x + w / 2, z0:z - d / 2, z1:z + d / 2, h:h + (y - h / 2)});
+  return m;
+}
+function blocked(x, z, pad){
+  pad = pad || .6;
+  for (const c of colliders) if (x > c.x0 - pad && x < c.x1 + pad && z > c.z0 - pad && z < c.z1 + pad) return true;
+  return false;
+}
+function collide(p, r){
+  p.x = clamp(p.x, -W / 2 + r, W / 2 - r);
+  p.z = clamp(p.z, ZMIN + r, ZMAX - r);
+  for (const c of colliders){
+    const cx = clamp(p.x, c.x0, c.x1), cz = clamp(p.z, c.z0, c.z1);
+    const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 < r * r){
+      if (d2 > 1e-6){ const d = Math.sqrt(d2); p.x = cx + dx / d * r; p.z = cz + dz / d * r; }
+      else p.z = c.z1 + r;
+    }
+  }
+}
+
+function buildSector(i){
+  sectorIdx = i;
+  const sc = SECTORS[i];
+  L = sc.len; ZMAX = 4; ZMIN = -(L + 6); ZC = {x:0, z:-(L + 2)};
+  if (lvl) scene.remove(lvl);
+  if (ents) scene.remove(ents);
+  lvl = new THREE.Group(); ents = new THREE.Group(); scene.add(lvl, ents);
+  colliders = []; lights = []; enemies = []; bots = []; pickups = []; projs = []; pools = []; fx = [];
+  scene.background = new THREE.Color(sc.fog);
+  scene.fog = new THREE.Fog(sc.fog, 5, sc.fogFar);
+  amb.color.setHex(sc.amb); amb.intensity = sc.roof ? .95 : .75;
+
+  const len = ZMAX - ZMIN, cz = (ZMAX + ZMIN) / 2, wh = sc.roof ? 1.2 : H;
+  bx(W + 1, .2, len, 0, -.1, cz, sc.floor);
+  for (let z = ZMAX - 2; z > ZMIN; z -= 4) bx(W, .01, .06, 0, .006, z, 0x0a0f0e);
+  if (!sc.roof) bx(W + 1, .2, len, 0, H + .1, cz, sc.ceil);
+  bx(.5, wh, len, -W / 2 - .25, wh / 2, cz, sc.wall);
+  bx(.5, wh, len, W / 2 + .25, wh / 2, cz, sc.wall);
+  bx(W + 1, wh, .5, 0, wh / 2, ZMAX + .25, sc.wall);
+  bx(W + 1, wh, .5, 0, wh / 2, ZMIN - .25, sc.wall);
+
+  if (!sc.roof){
+    bx(.06, .5, len, -W / 2 + .03, 1.1, cz, sc.stripe);
+    bx(.06, .5, len, W / 2 - .03, 1.1, cz, sc.stripe);
+    for (let z = -6, k = 0; z > ZMIN + 3; z -= 11, k++){
+      const side = k % 2 ? 1 : -1;
+      bx(.1, 2.4, 1.7, side * (W / 2 - .05), 1.2, z, 0x121c1b);
+      bx(.12, .5, .9, side * (W / 2 - .06), 1.5, z, 0x1a3b36, false, 0x0a2a24);
+    }
+    for (let z = ZMAX - 3, k = 0; z > ZMIN + 2; z -= 7, k++){
+      const dead = k % 5 === 3;
+      bx(.7, .06, 2.4, 0, H - .02, z, dead ? 0x222a29 : sc.light, false, dead ? 0 : sc.light);
+    }
+    for (let k = 0; k < 5; k++){
+      const l = new THREE.PointLight(sc.light, .95, 26, 2);
+      l.position.set(0, 2.9, -(k + .5) * L / 5 - 2);
+      lvl.add(l); lights.push({l, base:.95, f:rand(0, 9)});
+    }
+  } else {
+    for (let k = 0; k < 18; k++){
+      const s = rand(-1, 1) > 0 ? 1 : -1, hh = rand(6, 22);
+      const m = bx(rand(4, 8), hh, rand(4, 8), s * rand(16, 34), hh / 2 - 2, rand(ZMIN, ZMAX), 0x0b0f1a);
+      for (let w = 0; w < 5; w++) bx(.4, .4, .05, m.position.x + rand(-1.5, 1.5), rand(0, hh - 2), m.position.z + 3.2 * s * -1, 0xffd58a, false, 0xffd58a).visible = Math.random() < .5;
+    }
+    for (let k = 0; k < 3; k++){
+      const l = new THREE.PointLight(0xaab8ff, .9, 36, 2);
+      l.position.set(0, 5, -(k + .5) * L / 3 - 2); lvl.add(l); lights.push({l, base:.9, f:rand(0, 9)});
+    }
+  }
+
+  // zona de extracción
+  const ringCol = sc.roof ? 0xffd040 : 0x37ff9a;
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, .05, 36), new THREE.MeshBasicMaterial({color:ringCol, transparent:true, opacity:.32}));
+  ring.position.set(ZC.x, .03, ZC.z); lvl.add(ring);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, sc.roof ? 6 : H, 8), new THREE.MeshBasicMaterial({color:ringCol, transparent:true, opacity:.55}));
+  beam.position.set(ZC.x, (sc.roof ? 6 : H) / 2, ZC.z); lvl.add(beam);
+  if (sc.roof){
+    bx(.5, .02, 4, ZC.x - 1.2, .06, ZC.z, 0xffd040, false, 0x6a5500);
+    bx(.5, .02, 4, ZC.x + 1.2, .06, ZC.z, 0xffd040, false, 0x6a5500);
+    bx(2.4, .02, .5, ZC.x, .06, ZC.z, 0xffd040, false, 0x6a5500);
+  } else {
+    bx(7.6, .03, .15, 0, .02, ZC.z + 3.7, 0x37ff9a, false, 0x0a6a3a);
+  }
+  // zona segura de inicio
+  bx(W - .4, .03, .15, 0, .02, -3.2, 0x37ff9a, false, 0x0a6a3a);
+
+  // obstáculos
+  const n = Math.floor(L / 5), placed = [];
+  const kinds = [
+    {w:1, h:.9, d:2.2, c:0xcfd8dc, c2:0x4a7fb0},
+    {w:1.2, h:1.1, d:1.2, c:0x607d8b},
+    {w:1.4, h:1.4, d:1.4, c:0x8d6e63},
+    {w:2.2, h:.8, d:.9, c:0xb0bec5, c2:0x7f9aa6}
+  ];
+  for (let k = 0; k < n; k++){
+    const kd = pick(kinds), x = rand(-W / 2 + 1.8, W / 2 - 1.8), z = -rand(10, L - 6);
+    if (placed.some(p => Math.abs(p.z - z) < 3 && Math.abs(p.x - x) < 5)) continue;
+    placed.push({x, z});
+    bx(kd.w, kd.h, kd.d, x, kd.h / 2, z, kd.c, true);
+    if (kd.c2) bx(kd.w + .02, .06, kd.d * .6, x, kd.h + .03, z, kd.c2);
+  }
+  for (let k = 0; k < 16; k++){
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(rand(.5, 1.6), rand(.5, 1.6)), new THREE.MeshBasicMaterial({color:0x4a0808}));
+    m.rotation.x = -Math.PI / 2; m.position.set(rand(-W / 2 + 1, W / 2 - 1), .012, -rand(2, L)); lvl.add(m);
+  }
+
+  // objetos recogibles
+  const addPick = (type, x, z) => {
+    const g = new THREE.Group();
+    if (type === 'oxi'){ g.add(mkBox(.4, .3, .3, 0xe8efe9, 0, 0, 0)); g.add(mkBox(.1, .02, .32, 0x37ff9a, 0, .16, 0, 0x0a6a3a)); g.add(mkBox(.32, .02, .1, 0x37ff9a, 0, .16, 0, 0x0a6a3a)); }
+    else { g.add(mkBox(.4, .25, .3, 0xff9a2a, 0, 0, 0, 0x4a2a00)); g.add(mkBox(.34, .04, .24, 0x2a2a2a, 0, .14, 0)); }
+    g.position.set(x, .6, z); ents.add(g);
+    pickups.push({type, mesh:g, pos:g.position});
+  };
+  addPick('oxi', rand(-4, 4), -6); addPick('ammo', rand(-4, 4), -8);
+  for (let k = 0; k < 5; k++){
+    let x, z, tries = 0;
+    do { x = rand(-W / 2 + 1.5, W / 2 - 1.5); z = -rand(14, L); tries++; } while (blocked(x, z, .8) && tries < 20);
+    addPick(k % 2 ? 'oxi' : 'ammo', x, z);
+  }
+}
+
+/* =====================  PERSONAJES  ===================== */
+function humanoid(o){
+  const g = new THREE.Group(), fat = o.fat || 1;
+  const body = mkBox(.55 * fat, .8, .3 * fat, o.gown, 0, 1.1, 0);
+  g.add(body);
+  const legL = new THREE.Group(), legR = new THREE.Group();
+  legL.position.set(-.14, .72, 0); legR.position.set(.14, .72, 0);
+  legL.add(mkBox(.2, .72, .22, o.pants || 0x2a3a44, 0, -.36, 0));
+  legR.add(mkBox(.2, .72, .22, o.pants || 0x2a3a44, 0, -.36, 0));
+  g.add(legL, legR);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.22, 10, 8), lam(o.skin));
+  head.position.y = 1.72; g.add(head);
+  if (!o.friend){
+    g.add(mkBox(.05, .04, .04, 0xff2020, -.08, 1.75, .2, 0xff0000));
+    g.add(mkBox(.05, .04, .04, 0xff2020, .08, 1.75, .2, 0xff0000));
+  } else {
+    g.add(mkBox(.5, .12, .36, o.gown, 0, 1.92, 0));
+  }
+  const armL = new THREE.Group(), armR = new THREE.Group();
+  armL.position.set(-.38 * fat, 1.45, 0); armR.position.set(.38 * fat, 1.45, 0);
+  armL.add(mkBox(.14, .65, .14, o.skin, 0, -.3, 0));
+  armR.add(mkBox(.14, .65, .14, o.skin, 0, -.3, 0));
+  if (o.friend){ armR.rotation.x = -1.35; armR.add(mkBox(.07, .07, .42, 0x1b2224, 0, -.62, -.1)); armL.rotation.x = -.2; }
+  else { armL.rotation.x = -1.4; armR.rotation.x = -1.4; }
+  g.add(armL, armR);
+  g.scale.setScalar(o.s || 1);
+  g.userData = {legL, legR, armL, armR, body, head};
+  return g;
+}
+function buildEnemy(type){
+  let g;
+  if (type === 'common'){
+    g = humanoid({gown:pick([0x8fb3c2, 0x9fc7b4, 0xb7c7d1, 0xc9d2d6]), skin:pick([0x9db28a, 0xa9b890, 0x93aa84]), s:rand(.95, 1.08)});
+  } else if (type === 'toxemico'){
+    g = humanoid({gown:0x6b8f3a, skin:0xb7c94a, fat:1.5, s:1.12});
+    const b = new THREE.Mesh(new THREE.SphereGeometry(.42, 10, 8), lam(0x9fd23a, 0x2a4a00)); b.position.set(0, 1.05, .22); g.add(b);
+  } else if (type === 'monitor'){
+    g = humanoid({gown:0xe8efe9, skin:0xc9c0b0, s:1});
+    const m = mkBox(.55, .38, .22, 0x111111, 0, 2.2, 0); g.add(m);
+    const scr = mkBox(.46, .28, .02, 0xff2040, 0, 2.2, .12, 0xff2040); g.add(scr); g.userData.scr = scr;
+  } else if (type === 'contraccion'){
+    g = humanoid({gown:0x6a3a7a, skin:0x8a5a9a, s:1.1});
+    g.userData.armL.scale.y = 1.5; g.userData.armR.scale.y = 1.5;
+    const b = new THREE.Mesh(new THREE.SphereGeometry(.34, 10, 8), lam(0xa060c0, 0x300a40)); b.position.set(0, 1.05, .2); g.add(b);
+  } else {
+    g = humanoid({gown:0x552222, skin:0xb03030, fat:1.45, s:1.7});
+    g.add(mkBox(.1, .08, .05, 0xffe040, -.1, 1.78, .21, 0xffa000));
+    g.add(mkBox(.1, .08, .05, 0xffe040, .1, 1.78, .21, 0xffa000));
+  }
+  return g;
+}
+function makeBot(r, idx){
+  const mesh = humanoid({gown:r.color, skin:0xd9b08c, friend:true, pants:0x23323a});
+  const b = {mesh, pos:mesh.position, hp:100, alive:true, cd:rand(0, .5), name:r.name, role:r, phase:rand(0, 6), idx};
+  ents.add(mesh); return b;
+}
+
+/* =====================  ESTADO DE SECTOR  ===================== */
+function setCarried(v, x, z){
+  C.carried = v;
+  if (C.mesh.parent) C.mesh.parent.remove(C.mesh);
+  if (v){
+    camera.add(C.mesh); C.mesh.position.set(.3, -.36, -.75); C.mesh.rotation.set(0, .35, 0);
+  } else {
+    ents.add(C.mesh); C.pos.set(x, 0, z); C.mesh.position.set(x, .22, z); C.mesh.rotation.set(0, rand(0, 6), 0);
+  }
+  gun.visible = !v;
+}
+
+function beginSector(i, retry){
+  buildSector(i);
+  const others = ROLES.filter(r => r !== role);
+  P.pos.set(0, 1.6, -1); P.yaw = 0; P.pitch = 0; P.alive = true; P.grab = null; P.weapon = 0; P.nextShot = 0;
+  if (retry && snap){ C.integ = snap.integ; score = snap.score; kills = snap.kills; P.hp = role.hp * .85; P.ammo.shot = Math.max(snap.shot, 12); }
+  else {
+    P.hp = Math.max(P.hp, role.hp * .7);
+    if (i === 0){ P.hp = role.hp; P.ammo.shot = role.ammo; }
+    snap = {integ:C.integ, score, kills, shot:P.ammo.shot};
+  }
+  bots = others.map((r, k) => makeBot(r, k));
+  bots.forEach((b, k) => { b.pos.set([-2.5, 2.5, 0][k], 0, [-.2, -.2, 1.4][k]); });
+  C.mesh.visible = true;
+  setCarried(true);
+  D = {t:0, horde:14, spec:12, tank:false, fx:0};
+  fin = {state:'wait', t:0, chopper:null}; exitT = 0;
+  const n = 8 + i * 3;
+  for (let k = 0; k < n; k++){
+    let x, z, t = 0;
+    do { x = rand(-W / 2 + 1.5, W / 2 - 1.5); z = -rand(14, L); t++; } while (blocked(x, z, .8) && t < 20);
+    spawnEnemy('common', x, z, false);
+  }
+  buildTeamHud();
+  $('sectorName').textContent = SECTORS[i].name;
+  $('boss').style.display = 'none';
+  $('feed').innerHTML = '';
+  ['menu', 'brief', 'quiz', 'end', 'pause'].forEach(id => $(id).classList.remove('on'));
+  $('hud').classList.add('on');
+  state = 'play';
+  tryLock();
+  say(null, i === 0 ? 'Evacuación iniciada. Mantengan al equipo junto.' : 'Nuevo sector. Mantengan la formación.', '#b9ffe0');
+}
+
+function spawnEnemy(type, x, z, aggro){
+  const d = EN[type], mesh = buildEnemy(type);
+  mesh.position.set(x, 0, z); ents.add(mesh);
+  const e = {type, mesh, hp:d.hp * (type === 'eclampsia' ? 1 + sectorIdx * .05 : 1), pos:mesh.position, s:mesh.scale.x,
+    speed:d.speed * rand(.85, 1.2), aggro, cd:rand(.2, .8), phase:rand(0, 6), slowT:0, acidCD:rand(1, 3), alarmCD:2, grabCD:rand(2, 4), def:d, dead:false};
+  e.max = e.hp; enemies.push(e);
+  return e;
+}
+
+/* =====================  HUD  ===================== */
+function say(who, text, color){
+  const d = document.createElement('div');
+  d.innerHTML = (who ? '<b style="color:#ffb000">' + who + ':</b> ' : '') + '<span style="color:' + (color || '#e8efe9') + '">' + text + '</span>';
+  $('feed').appendChild(d);
+  while ($('feed').children.length > 5) $('feed').removeChild($('feed').firstChild);
+  setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 7000);
+}
+function botSay(text, color){
+  const b = bots.filter(x => x.alive);
+  if (b.length) say(pick(b).name, text, color);
+}
+function ficha(type){
+  if (seen[type]) return; seen[type] = true;
+  const f = FICHAS[type];
+  const t = $('toast');
+  t.innerHTML = '<h3>' + f.t + '</h3><p>' + f.b + '</p><p style="color:#ffb000">' + f.tip + '</p>';
+  t.style.display = 'block'; toastT = 11;
+}
+function barClass(p){ return p < .25 ? 'crit' : p < .5 ? 'low' : ''; }
+function buildTeamHud(){
+  $('hpName').textContent = role.name + ' · ' + role.title;
+  const t = $('team'); t.innerHTML = '';
+  bots.forEach((b, k) => {
+    const r = document.createElement('div'); r.className = 'row'; r.id = 'tm' + k;
+    r.innerHTML = '<span>' + b.name + '</span><div class="bar"><i></i></div>'; t.appendChild(r);
+  });
+}
+function updateHud(dt){
+  const hp = Math.max(0, Math.round(P.hp)), pc = clamp(P.hp / role.hp, 0, 1);
+  $('hpNum').textContent = hp;
+  const f = $('hpFill'); f.style.width = (pc * 100) + '%'; f.className = barClass(pc);
+  bots.forEach((b, k) => {
+    const r = $('tm' + k); if (!r) return;
+    r.className = 'row' + (b.alive ? '' : ' dead');
+    const i = r.querySelector('i'); const p = clamp(b.hp / 100, 0, 1);
+    i.style.width = (p * 100) + '%'; i.className = barClass(p);
+  });
+  const w = WEAPONS[P.weapon];
+  $('weapon').textContent = C.carried ? 'Cargando el kit (F para soltar)' : w.name;
+  $('ammo').textContent = C.carried ? '' : (w.ammoKey ? P.ammo[w.ammoKey] : '∞');
+  const ip = clamp(C.integ / 100, 0, 1);
+  $('cargoNum').textContent = Math.max(0, Math.round(C.integ)) + '%';
+  const cf = $('cargoFill'); cf.style.width = (ip * 100) + '%'; cf.className = barClass(ip);
+  $('scoreNum').textContent = Math.round(score);
+  vign = Math.max(0, vign - dt * .9);
+  $('vign').style.opacity = clamp(vign + (P.hp < role.hp * .25 ? .35 : 0), 0, 1);
+  const tank = enemies.find(e => e.type === 'eclampsia' && !e.dead);
+  $('boss').style.display = tank ? 'block' : 'none';
+  if (tank) $('bossFill').style.width = (clamp(tank.hp / tank.max, 0, 1) * 100) + '%';
+  if (toastT > 0){ toastT -= dt; if (toastT <= 0) $('toast').style.display = 'none'; }
+  if (hitT > 0){ hitT -= dt; if (hitT <= 0) $('hit').className = ''; }
+
+  // objetivo y prompts
+  const sc = SECTORS[sectorIdx];
+  let obj = sc.obj, pr = '';
+  if (!C.carried){
+    const d = Math.hypot(P.pos.x - C.pos.x, P.pos.z - C.pos.z);
+    obj = 'El kit está en el suelo. Recógelo con F para avanzar.';
+    if (d < 2.6) pr = 'F · recoger el kit neonatal';
+  }
+  if (sc.finale){
+    if (fin.state === 'defend') obj = 'Resiste ' + Math.ceil(fin.t) + ' s hasta que llegue el helicóptero.';
+    else if (fin.state === 'chopper') obj = '¡Helicóptero! Súbete con el kit dentro del círculo.';
+  }
+  $('obj').textContent = obj;
+  $('prompt').style.display = pr ? 'block' : 'none'; $('prompt').textContent = pr;
+  const exv = $('ex');
+  if (exitT > 0){ exv.style.display = 'block'; $('exFill').style.width = (exitT / (sc.finale ? 3 : 2.5) * 100) + '%'; }
+  else exv.style.display = 'none';
+}
+
+/* =====================  EFECTOS  ===================== */
+const pGeo = new THREE.BoxGeometry(.09, .09, .09);
+function burst(p, col, n){
+  for (let i = 0; i < n; i++){
+    const m = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({color:col}));
+    m.position.copy(p);
+    ents.add(m);
+    fx.push({obj:m, life:rand(.3, .7), vel:new THREE.Vector3(rand(-2, 2), rand(1, 3.5), rand(-2, 2)), grav:true});
+  }
+}
+function tracer(a, b, col){
+  const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({color:col, transparent:true}));
+  ents.add(l); fx.push({obj:l, life:.07, dispose:true});
+}
+function addPool(x, z){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, .04, 24), new THREE.MeshBasicMaterial({color:0x9fff3a, transparent:true, opacity:.55}));
+  m.position.set(x, .03, z); ents.add(m);
+  pools.push({x, z, life:7, mesh:m, r:2.1});
+}
+
+/* =====================  DAÑO  ===================== */
+function hurtP(d){
+  if (!P.alive || state !== 'play') return;
+  d *= role.dmgTaken;
+  P.hp -= d; vign = Math.min(1, vign + d / 28); shake = Math.min(.25, shake + d / 160);
+  if (C.carried) C.integ -= d * .32 * role.cargoLoss;
+  if (time > nextHurtSnd){ snd(110, .14, 'sawtooth', .07, -50); nextHurtSnd = time + .18; }
+  if (C.integ <= 0){ C.integ = 0; gameOver('El kit neonatal quedó destruido.'); return; }
+  if (P.hp <= 0){ P.hp = 0; P.alive = false; releaseGrab(); gameOver('Has caído. El equipo no pudo continuar.'); }
+}
+function botDown(b){
+  b.alive = false; b.hp = 0;
+  b.mesh.rotation.x = -Math.PI / 2; b.mesh.position.y = .25;
+  say(null, b.name + ' ha caído.', '#ff6a7d'); snd(90, .4, 'sawtooth', .06, -40);
+}
+function hurtTarget(t, d){
+  if (t.kind === 'p') hurtP(d);
+  else { t.b.hp -= d; if (t.b.hp <= 0 && t.b.alive) botDown(t.b); }
+}
+function nearestTarget(p){
+  let best = null, bd = 1e9;
+  if (P.alive){ const d = Math.hypot(P.pos.x - p.x, P.pos.z - p.z); best = {kind:'p', x:P.pos.x, z:P.pos.z, d}; bd = d * .85; }
+  for (const b of bots){
+    if (!b.alive) continue;
+    const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z);
+    if (d < bd){ bd = d; best = {kind:'b', x:b.pos.x, z:b.pos.z, d, b}; }
+  }
+  return best;
+}
+function releaseGrab(){
+  if (P.grab){ if (P.grab.line) ents.remove(P.grab.line); if (P.grab.e) P.grab.e.grabCD = 7; P.grab = null; }
+}
+
+function killEnemy(e, byPlayer){
+  if (e.dead) return;
+  e.dead = true; ents.remove(e.mesh);
+  kills++; score += e.def.pts;
+  burst(new THREE.Vector3(e.pos.x, 1, e.pos.z), e.type === 'toxemico' ? 0x9fff3a : 0xaa1020, 12);
+  if (e.type === 'toxemico') addPool(e.pos.x, e.pos.z);
+  if (e.type === 'monitor') say(null, 'Monitor silenciado.', '#b9ffe0');
+  if (e.type === 'contraccion' && P.grab && P.grab.e === e){ releaseGrab(); say(null, '¡Te liberaste de la Contracción!', '#b9ffe0'); }
+  if (e.type === 'eclampsia'){ say(null, '¡Eclampsia controlada! Bien hecho.', '#37ff9a'); snd(200, .6, 'sawtooth', .08, -150); }
+  if (e.type !== 'common') score += 0;
+}
+
+/* =====================  DISPARO  ===================== */
+function rayBox(o, d, c){
+  let t0 = 0, t1 = 1e9;
+  const sl = [[o.x, d.x, c.x0, c.x1], [o.y, d.y, 0, c.h], [o.z, d.z, c.z0, c.z1]];
+  for (const s of sl){
+    if (Math.abs(s[1]) < 1e-8){ if (s[0] < s[2] || s[0] > s[3]) return 1e9; }
+    else {
+      let a = (s[2] - s[0]) / s[1], b = (s[3] - s[0]) / s[1];
+      if (a > b){ const t = a; a = b; b = t; }
+      t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+      if (t0 > t1) return 1e9;
+    }
+  }
+  return t0;
+}
+function raySphere(o, d, cx, cy, cz, r){
+  const ox = cx - o.x, oy = cy - o.y, oz = cz - o.z;
+  const t = ox * d.x + oy * d.y + oz * d.z;
+  if (t < 0) return 1e9;
+  const d2 = ox * ox + oy * oy + oz * oz - t * t;
+  if (d2 > r * r) return 1e9;
+  return t - Math.sqrt(r * r - d2);
+}
+function castRay(o, d, maxT){
+  let bt = maxT;
+  for (const c of colliders){ const t = rayBox(o, d, c); if (t < bt) bt = t; }
+  let hit = null;
+  for (const e of enemies){
+    if (e.dead) continue;
+    const s = e.s;
+    const th = raySphere(o, d, e.pos.x, 1.72 * s, e.pos.z, .27 * s);
+    const tb = raySphere(o, d, e.pos.x, 1.0 * s, e.pos.z, .5 * s * (e.type === 'toxemico' ? 1.35 : 1));
+    const t = Math.min(th, tb);
+    if (t < bt){ bt = t; hit = {e, head:th <= tb, t}; }
+  }
+  return {hit, t:bt};
+}
+function shoot(){
+  if (C.carried || !P.alive || time < P.nextShot) return;
+  const w = WEAPONS[P.weapon];
+  if (w.ammoKey && P.ammo[w.ammoKey] <= 0){ snd(200, .05, 'square', .03); P.nextShot = time + .3; return; }
+  if (w.ammoKey) P.ammo[w.ammoKey]--;
+  P.nextShot = time + w.rate;
+  const o = P.pos.clone();
+  const q = camera.quaternion;
+  const mz = new THREE.Vector3(.26, -.2, -.8).applyQuaternion(q).add(o);
+  for (let i = 0; i < w.pellets; i++){
+    const d = new THREE.Vector3(rand(-w.spread, w.spread), rand(-w.spread, w.spread), -1).applyQuaternion(q).normalize();
+    const r = castRay(o, d, 60);
+    const end = o.clone().add(d.clone().multiplyScalar(Math.min(r.t, 40)));
+    if (i < 3) tracer(mz, end, 0xffe9a0);
+    if (r.hit){
+      const e = r.hit.e;
+      let dmg = w.dmg * (r.hit.head ? 2 : 1);
+      if (role.slow && e.type === 'eclampsia') dmg *= 1.25;
+      if (role.slow) e.slowT = 3;
+      e.hp -= dmg; e.aggro = true; e.flashT = .08;
+      burst(end, e.type === 'toxemico' ? 0x9fff3a : 0xaa1020, 2);
+      $('hit').className = 'on' + (r.hit.head ? ' hs' : ''); hitT = .12;
+      if (e.hp <= 0) killEnemy(e, true);
+    }
+  }
+  muzzle.intensity = 2.2; setTimeout(() => muzzle.intensity = 0, 50);
+  P.kick = .08; P.pitch += .006 * w.pellets / (w.pellets > 1 ? 4 : 1);
+  snd(w.pellets > 1 ? 120 : 520, .09, w.pellets > 1 ? 'sawtooth' : 'square', .06, -80);
+  for (const e of enemies) if (!e.aggro && !e.dead && Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z) < 26) e.aggro = true;
+}
+
+/* =====================  IA ENEMIGOS  ===================== */
+function stepTo(e, tx, tz, sp, dt){
+  const dx = tx - e.pos.x, dz = tz - e.pos.z, d = Math.hypot(dx, dz) || 1;
+  e.pos.x += dx / d * sp * dt; e.pos.z += dz / d * sp * dt;
+}
+function updateEnemies(dt){
+  for (const e of enemies){
+    if (e.dead) continue;
+    const U = e.mesh.userData, t = nearestTarget(e.pos);
+    e.phase += dt * 6;
+    if (e.slowT > 0) e.slowT -= dt;
+    let sp = e.speed * (e.slowT > 0 ? .5 : 1);
+    if (!e.aggro){
+      if (t && t.d < 12) e.aggro = true;
+      U.armL.rotation.x = -1.4 + Math.sin(e.phase * .3) * .1;
+      continue;
+    }
+    if (!t) continue;
+    const dx = t.x - e.pos.x, dz = t.z - e.pos.z, dist = t.d;
+    e.mesh.rotation.y = Math.atan2(dx, dz);
+    let moving = false;
+
+    if (e.type === 'common' || e.type === 'eclampsia'){
+      let reach = e.type === 'eclampsia' ? 2.3 : 1.3;
+      if (e.type === 'eclampsia' && e.hp < e.max * .5) sp *= 1.35;
+      if (dist > reach){ stepTo(e, t.x, t.z, sp, dt); moving = true; }
+      else {
+        e.cd -= dt;
+        if (e.cd <= 0){
+          e.cd = e.type === 'eclampsia' ? 1.3 : 1;
+          hurtTarget(t, e.def.dmg);
+          if (e.type === 'eclampsia'){
+            snd(70, .3, 'sawtooth', .09, -30);
+            if (t.kind === 'p'){ const k = 3 / (dist || 1); P.pos.x += (t.x - e.pos.x) * k; P.pos.z += (t.z - e.pos.z) * k; collide(P.pos, .4); shake = .3; }
+          }
+        }
+        U.armL.rotation.x = -1.4 + Math.sin(e.phase * 2) * .6; U.armR.rotation.x = U.armL.rotation.x;
+      }
+      if (e.type === 'eclampsia' && !e.roared){ e.roared = true; snd(60, 1, 'sawtooth', .1, -25); }
+    } else if (e.type === 'toxemico'){
+      if (dist > 15){ stepTo(e, t.x, t.z, sp, dt); moving = true; }
+      else if (dist < 9){ stepTo(e, e.pos.x - dx, e.pos.z - dz, sp, dt); moving = true; }
+      e.acidCD -= dt;
+      if (e.acidCD <= 0 && dist < 24 && dist > 5){
+        e.acidCD = 4.2; throwAcid(e, t);
+      }
+    } else if (e.type === 'monitor'){
+      if (dist < 11){ stepTo(e, e.pos.x - dx, e.pos.z - dz, sp, dt); moving = true; }
+      else if (dist > 20){ stepTo(e, t.x, t.z, sp, dt); moving = true; }
+      e.alarmCD -= dt;
+      if (U.scr) U.scr.material.emissive.setHex(Math.sin(e.phase * 2) > 0 ? 0xff2040 : 0x300008);
+      if (e.alarmCD <= 0 && dist < 30){
+        e.alarmCD = 3.5;
+        snd(880, .18, 'square', .06); setTimeout(() => snd(880, .18, 'square', .06), 220);
+        say('Monitor', '¡ALARMA! FCF 190 lpm. La horda se acerca.', '#ff6a7d');
+        if (enemies.filter(x => !x.dead).length < 45)
+          for (let k = 0; k < 3; k++){
+            const a = rand(0, 6.28), x = clamp(e.pos.x + Math.cos(a) * 2.5, -W / 2 + 1, W / 2 - 1), z = clamp(e.pos.z + Math.sin(a) * 2.5, ZMIN + 1, ZMAX - 1);
+            if (!blocked(x, z, .4)) spawnEnemy('common', x, z, true);
+          }
+      }
+    } else if (e.type === 'contraccion'){
+      if (dist > 16){ stepTo(e, t.x, t.z, sp, dt); moving = true; }
+      else if (dist < 8){ stepTo(e, e.pos.x - dx, e.pos.z - dz, sp, dt); moving = true; }
+      e.grabCD -= dt;
+      if (!P.grab && P.alive && e.grabCD <= 0){
+        const dp = Math.hypot(P.pos.x - e.pos.x, P.pos.z - e.pos.z);
+        if (dp < 18){
+          const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+          const line = new THREE.Line(g, new THREE.LineBasicMaterial({color:0xd070ff}));
+          line.frustumCulled = false; ents.add(line);
+          P.grab = {e, t:0, crush:0, line};
+          if (C.carried) setCarried(false, P.pos.x, P.pos.z);
+          say(null, '¡Te atrapó la Contracción! ¡Dispárale!', '#ff6a7d'); snd(160, .3, 'sawtooth', .07, 80);
+        }
+      }
+    }
+    if (moving){
+      collide(e.pos, e.def.r);
+      U.legL.rotation.x = Math.sin(e.phase) * .6; U.legR.rotation.x = -Math.sin(e.phase) * .6;
+    }
+  }
+  // separación
+  for (let i = 0; i < enemies.length; i++){
+    const a = enemies[i]; if (a.dead) continue;
+    for (let j = i + 1; j < enemies.length; j++){
+      const b = enemies[j]; if (b.dead) continue;
+      const dx = a.pos.x - b.pos.x, dz = a.pos.z - b.pos.z, d = Math.hypot(dx, dz);
+      const m = (a.def.r + b.def.r) * .9;
+      if (d < m && d > .001){ const p = (m - d) / 2; a.pos.x += dx / d * p; a.pos.z += dz / d * p; b.pos.x -= dx / d * p; b.pos.z -= dz / d * p; }
+    }
+  }
+  enemies = enemies.filter(e => !e.dead);
+  // enemigos cerca del kit en el suelo
+  if (!C.carried){
+    for (const e of enemies){
+      if (e.type !== 'common' || !e.aggro) continue;
+      if (Math.hypot(e.pos.x - C.pos.x, e.pos.z - C.pos.z) < 1.1){
+        C.integ -= 3 * dt * (role.cargoLoss);
+        if (C.integ <= 0){ C.integ = 0; gameOver('El kit neonatal quedó destruido.'); return; }
+      }
+    }
+  }
+}
+function throwAcid(e, t){
+  const T = 1.2, y0 = 1.8;
+  const m = new THREE.Mesh(new THREE.SphereGeometry(.22, 8, 6), new THREE.MeshBasicMaterial({color:0x9fff3a}));
+  m.position.set(e.pos.x, y0, e.pos.z); ents.add(m);
+  projs.push({mesh:m, vel:new THREE.Vector3((t.x - e.pos.x) / T, (0 - y0 + .5 * 9.8 * T * T) / T, (t.z - e.pos.z) / T)});
+  snd(300, .2, 'sine', .05, 200);
+}
+
+/* =====================  AMIGOS  ===================== */
+function updateBots(dt){
+  const offs = [[-2.2, 2.4], [2.2, 2.6], [0, 4.4]];
+  for (const b of bots){
+    if (!b.alive) continue;
+    const U = b.mesh.userData;
+    let target = null, bs = 1e9;
+    for (const e of enemies){
+      if (e.dead) continue;
+      const d = Math.hypot(e.pos.x - b.pos.x, e.pos.z - b.pos.z);
+      if (d > 17) continue;
+      const s = d - (e.type !== 'common' ? 8 : 0);
+      if (s < bs){ bs = s; target = e; }
+    }
+    // seguir al jugador
+    const o = offs[b.idx % 3];
+    const gx = P.pos.x + o[0], gz = P.pos.z + o[1];
+    const gd = Math.hypot(gx - b.pos.x, gz - b.pos.z);
+    let moving = false;
+    if (gd > 1.2 && (!target || gd > 6)){
+      stepTo(b, gx, gz, Math.min(4.8, 2 + gd), dt); moving = true;
+      b.mesh.rotation.y = Math.atan2(gx - b.pos.x, gz - b.pos.z);
+    }
+    if (gd > 45){ b.pos.set(P.pos.x + o[0], 0, P.pos.z + 2); }
+    collide(b.pos, .4);
+    b.phase += dt * 7;
+    U.legL.rotation.x = moving ? Math.sin(b.phase) * .6 : 0; U.legR.rotation.x = moving ? -Math.sin(b.phase) * .6 : 0;
+    b.cd -= dt;
+    if (target){
+      b.mesh.rotation.y = Math.atan2(target.pos.x - b.pos.x, target.pos.z - b.pos.z);
+      if (b.cd <= 0){
+        b.cd = rand(.5, .85);
+        const from = new THREE.Vector3(b.pos.x, 1.4, b.pos.z), to = new THREE.Vector3(target.pos.x + rand(-.15, .15), 1.1 * target.s, target.pos.z);
+        const dir = to.clone().sub(from).normalize();
+        let bt = to.distanceTo(from), clear = true;
+        for (const c of colliders){ if (rayBox(from, dir, c) < bt) { clear = false; break; } }
+        if (clear){
+          tracer(from, to, 0xaaffdd);
+          target.hp -= target.type === 'eclampsia' ? 9 : 11; target.aggro = true;
+          burst(to, 0xaa1020, 1);
+          if (target.hp <= 0) killEnemy(target, false);
+        }
+      }
+    }
+  }
+}
+
+/* =====================  PROYECTILES, CHARCOS, FX  ===================== */
+function updateProps(dt){
+  for (const p of projs){
+    p.vel.y -= 9.8 * dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    if (p.mesh.position.y <= .1){
+      addPool(p.mesh.position.x, p.mesh.position.z);
+      if (Math.hypot(P.pos.x - p.mesh.position.x, P.pos.z - p.mesh.position.z) < 1) hurtP(8);
+      ents.remove(p.mesh); p.done = true;
+    }
+  }
+  projs = projs.filter(p => !p.done);
+  for (const p of pools){
+    p.life -= dt; p.mesh.material.opacity = Math.min(.55, p.life / 2);
+    if (P.alive && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < p.r) hurtP(11 * dt);
+    for (const b of bots) if (b.alive && Math.hypot(b.pos.x - p.x, b.pos.z - p.z) < p.r){ b.hp -= 11 * dt; if (b.hp <= 0) botDown(b); }
+    if (!C.carried && Math.hypot(C.pos.x - p.x, C.pos.z - p.z) < p.r){ C.integ -= 6 * dt * role.cargoLoss; if (C.integ <= 0){ C.integ = 0; gameOver('El ácido destruyó el kit neonatal.'); return; } }
+    if (p.life <= 0){ ents.remove(p.mesh); p.done = true; }
+  }
+  pools = pools.filter(p => !p.done);
+  for (const f of fx){
+    f.life -= dt;
+    if (f.vel){ f.vel.y -= 9.8 * dt; f.obj.position.addScaledVector(f.vel, dt); if (f.obj.position.y < .05) f.vel.set(0, 0, 0); }
+    if (f.life <= 0){ ents.remove(f.obj); if (f.dispose && f.obj.geometry) f.obj.geometry.dispose(); f.done = true; }
+  }
+  fx = fx.filter(f => !f.done);
+  for (const k of pickups){
+    k.mesh.rotation.y += dt * 1.5; k.mesh.position.y = .6 + Math.sin(time * 2 + k.pos.x) * .08;
+    if (P.alive && Math.hypot(P.pos.x - k.pos.x, P.pos.z - k.pos.z) < 1.3){
+      if (k.type === 'oxi'){
+        if (P.hp >= role.hp - 1) continue;
+        P.hp = Math.min(role.hp, P.hp + 40 * role.heal); say(null, 'Oxitocina... y un buen botiquín. Salud recuperada.', '#37ff9a');
+      } else { P.ammo.shot += 10; say(null, '+10 cartuchos de escopeta.', '#ffb000'); }
+      snd(660, .1, 'sine', .06, 300); ents.remove(k.mesh); k.done = true;
+    }
+  }
+  pickups = pickups.filter(k => !k.done);
+  lights.forEach(l => { l.f += dt * 9; l.l.intensity = l.base * (Math.sin(l.f) * Math.sin(l.f * 2.7) > .93 ? .25 : 1); });
+  if (fin.chopper){
+    const c = fin.chopper;
+    c.position.y = Math.max(3.2, c.position.y - dt * 3.5);
+    c.userData.rotor.rotation.y += dt * 30;
+  }
+}
+
+/* =====================  DIRECTOR  ===================== */
+function spawnPos(minD, maxD, ahead){
+  for (let t = 0; t < 14; t++){
+    const dz = rand(minD, maxD) * (Math.random() < ahead ? -1 : 1);
+    const z = P.pos.z + dz;
+    if (z > ZMAX - 2 || z < ZMIN + 2) continue;
+    const x = rand(-W / 2 + 1.5, W / 2 - 1.5);
+    if (blocked(x, z, .6)) continue;
+    return {x, z};
+  }
+  return null;
+}
+function updateDirector(dt){
+  const sc = SECTORS[sectorIdx];
+  D.t += dt;
+  const intense = fin.state === 'defend' ? 2 : 1;
+  const alive = enemies.length;
+  if (D.t >= D.horde && alive < 36){
+    const n = 5 + sectorIdx * 2 + (intense > 1 ? 5 : 0);
+    let c = 0;
+    for (let k = 0; k < n; k++){ const p = spawnPos(20, 36, .7); if (p){ spawnEnemy('common', p.x, p.z, true); c++; } }
+    if (c){ say(null, '¡HORDA! Pacientes alterados vienen hacia nosotros.', '#ff6a7d'); snd(150, .5, 'sawtooth', .07, -60); if (!seen.common) ficha('common'); }
+    D.horde = D.t + Math.max(14, (40 - sectorIdx * 3) / intense);
+  }
+  const specials = enemies.filter(e => e.type !== 'common' && e.type !== 'eclampsia').length;
+  if (D.t >= D.spec && specials < 3){
+    const type = pick(sc.pool), p = spawnPos(18, 32, .8);
+    if (p){ spawnEnemy(type, p.x, p.z, true); botSay(CALL[type], '#ffb000'); ficha(type); }
+    D.spec = D.t + 15 / intense;
+  }
+  if (sc.tank && !D.tank && P.pos.z < -L * .5){
+    const p = spawnPos(20, 30, 1);
+    if (p){ D.tank = true; spawnEnemy('eclampsia', p.x, p.z, true); botSay(CALL.eclampsia, '#ff6a7d'); ficha('eclampsia'); snd(60, 1.2, 'sawtooth', .1, -20); }
+  }
+}
+
+/* =====================  EXTRACCIÓN  ===================== */
+function inZone(x, z){ return Math.hypot(x - ZC.x, z - ZC.z) < 3.8; }
+function makeChopper(){
+  const g = new THREE.Group();
+  g.add(mkBox(2.2, 1.3, 4, 0x3a4350, 0, 0, 0));
+  g.add(mkBox(.4, .4, 3.4, 0x3a4350, 0, .2, 3));
+  g.add(mkBox(1.6, .5, .1, 0xaee6ff, 0, .25, -2, 0x2a5a70));
+  const rotor = new THREE.Group();
+  rotor.add(mkBox(9, .06, .35, 0x1a1e24, 0, 0, 0));
+  rotor.add(mkBox(.35, .06, 9, 0x1a1e24, 0, 0, 0));
+  rotor.position.y = 1; g.add(rotor); g.userData.rotor = rotor;
+  g.position.set(ZC.x, 16, ZC.z); ents.add(g);
+  return g;
+}
+function updateExtraction(dt){
+  const sc = SECTORS[sectorIdx];
+  const cargoIn = C.carried ? inZone(P.pos.x, P.pos.z) : inZone(C.pos.x, C.pos.z);
+  const ready = P.alive && inZone(P.pos.x, P.pos.z) && cargoIn;
+  if (sc.finale){
+    if (fin.state === 'wait'){
+      if (ready){
+        fin.state = 'defend'; fin.t = 45;
+        say(null, 'Helicóptero en camino. ¡Resistan 45 segundos!', '#ffb000');
+        const p = spawnPos(18, 28, 1);
+        if (p){ spawnEnemy('eclampsia', p.x, p.z, true); botSay(CALL.eclampsia, '#ff6a7d'); ficha('eclampsia'); }
+        D.horde = D.t + 2;
+      }
+    } else if (fin.state === 'defend'){
+      fin.t -= dt;
+      if (fin.t <= 0){ fin.state = 'chopper'; fin.chopper = makeChopper(); say(null, '¡El helicóptero está aquí! ¡Suban!', '#37ff9a'); snd(120, 1.2, 'sawtooth', .06, 40); }
+    } else if (fin.state === 'chopper'){
+      if (ready && fin.chopper.position.y < 4){ exitT += dt; if (exitT >= 3){ sectorDone(); } }
+      else exitT = Math.max(0, exitT - dt * 2);
+    }
+  } else {
+    if (ready){ exitT += dt; if (exitT >= 2.5) sectorDone(); }
+    else exitT = Math.max(0, exitT - dt * 2);
+  }
+}
+
+/* =====================  FLUJO DEL JUEGO  ===================== */
+function exitLock(){ if (document.pointerLockElement) document.exitPointerLock(); }
+function sectorDone(){
+  if (state !== 'play') return;
+  state = 'quiz'; exitLock();
+  score += 150 + Math.round(C.integ * 2);
+  $('hud').classList.remove('on');
+  showQuiz(sectorIdx);
+  snd(520, .3, 'sine', .07, 300);
+}
+function shuffled(q){
+  const idx = q.o.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  return idx;
+}
+function showQuiz(i){
+  const q = QUIZ[i];
+  $('qHead').textContent = 'Sector ' + (i + 1) + ' superado · Prueba clínica';
+  $('qText').textContent = q.q; $('qFb').innerHTML = ''; $('qNext').style.display = 'none';
+  const box = $('qOpts'); box.innerHTML = '';
+  shuffled(q).forEach(k => {
+    const b = document.createElement('button'); b.className = 'opt'; b.textContent = q.o[k];
+    b.onclick = () => {
+      const ok = k === q.a;
+      box.querySelectorAll('.opt').forEach(x => { x.disabled = true; if (x.textContent === q.o[q.a]) x.classList.add('right'); });
+      if (!ok) b.classList.add('wrong');
+      answered[i] = ok;
+      let rw = '';
+      if (ok){ quizOK++; score += 200; C.integ = Math.min(100, C.integ + 15); P.hp = Math.min(role.hp, P.hp + 30); rw = ' Recompensa: +15% al kit neonatal y +30 de salud.'; }
+      $('qFb').innerHTML = '<div class="box ' + (ok ? 'g' : '') + '"><h3>' + (ok ? 'Correcto' : 'No es esa') + '</h3><p>' + q.e + rw + '</p></div>';
+      $('qNext').style.display = 'inline-block';
+      $('qNext').textContent = i === SECTORS.length - 1 ? 'Ver resultado' : 'Siguiente sector';
+    };
+    box.appendChild(b);
+  });
+  $('quiz').classList.add('on');
+}
+function showBrief(i){
+  state = 'brief'; $('hud').classList.remove('on');
+  const sc = SECTORS[i];
+  $('bTitle').textContent = sc.name; $('bObj').textContent = sc.obj;
+  const types = ['common'].concat(sc.pool).concat(sc.tank ? ['eclampsia'] : []);
+  $('bEnemies').innerHTML = types.map(t => '<p><b style="color:#ffb000">' + FICHAS[t].t + '.</b> ' + FICHAS[t].tip + '</p>').join('') + (sc.finale ? '<p><b style="color:#ffb000">Eclampsia.</b> Llegará durante la defensa del helipuerto.</p>' : '');
+  $('bLesson').textContent = sc.lesson;
+  $('brief').classList.add('on');
+}
+function gameOver(reason){
+  if (state !== 'play') return;
+  state = 'over'; exitLock(); $('hud').classList.remove('on');
+  $('eTitle').textContent = 'Misión fallida'; $('eTitle').style.color = '';
+  $('eText').textContent = reason;
+  $('eStats').innerHTML = statsHtml();
+  $('eLessons').innerHTML = '<div class="box g"><h3>Repaso del sector</h3><p>' + SECTORS[sectorIdx].lesson + '</p></div>';
+  $('btnRetry').style.display = 'inline-block';
+  $('end').classList.add('on');
+  snd(80, 1, 'sawtooth', .09, -40);
+}
+function statsHtml(){
+  return '<div><b>' + Math.round(score) + '</b>puntos</div><div><b>' + kills + '</b>infectados</div><div><b>' + Math.round(C.integ) + '%</b>kit neonatal</div><div><b>' + quizOK + '/' + QUIZ.length + '</b>pruebas clínicas</div>';
+}
+function victory(){
+  state = 'win'; $('hud').classList.remove('on');
+  score += quizOK * 100;
+  const rank = score > 4200 ? 'Jefe de Servicio' : score > 3000 ? 'Especialista' : score > 1800 ? 'Residente destacado' : 'Interno sobreviviente';
+  $('eTitle').textContent = 'Evacuación completada'; $('eTitle').style.color = 'var(--ok)';
+  $('eText').textContent = 'El kit neonatal llegó al helicóptero. Rango obtenido: ' + rank + '.';
+  $('eStats').innerHTML = statsHtml();
+  $('eLessons').innerHTML = '<div class="box g"><h3>Lo que aprendiste</h3>' + SECTORS.map((s, i) => '<p>' + (answered[i] ? '✔ ' : '✖ ') + s.lesson + '</p>').join('') + '</div>';
+  $('btnRetry').style.display = 'none';
+  $('end').classList.add('on');
+}
+function startGame(){
+  role = selRole; sectorIdx = 0; score = 0; kills = 0; quizOK = 0; seen = {}; answered = []; C.integ = 100; P.hp = role.hp;
+  $('menu').classList.remove('on');
+  showBrief(0);
+}
+
+/* =====================  ENTRADA  ===================== */
+function tryLock(){
+  try { const r = cv.requestPointerLock && cv.requestPointerLock(); if (r && r.catch) r.catch(() => { lockFailed = true; }); } catch (e) { lockFailed = true; }
+}
+document.addEventListener('pointerlockerror', () => { lockFailed = true; });
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement === cv){ lockedOnce = true; lockFailed = false; }
+  else if (lockedOnce && state === 'play') pauseGame();
+});
+function pauseGame(){ if (state !== 'play') return; state = 'pause'; exitLock(); $('pause').classList.add('on'); }
+function resumeGame(){ $('pause').classList.remove('on'); state = 'play'; tryLock(); }
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (state === 'play'){
+    if (e.code === 'Digit1') P.weapon = 0;
+    if (e.code === 'Digit2') P.weapon = 1;
+    if (e.code === 'KeyF') toggleCargo();
+    if (e.code === 'KeyP') pauseGame();
+    if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+  } else if (state === 'pause' && e.code === 'KeyP') resumeGame();
+  if (e.code === 'KeyM') muted = !muted;
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+cv.addEventListener('mousedown', e => { if (state === 'play'){ mouseDown = true; if (!document.pointerLockElement && !lockFailed) tryLock(); } });
+window.addEventListener('mouseup', () => { mouseDown = false; });
+window.addEventListener('mousemove', e => {
+  if (document.pointerLockElement === cv && state === 'play'){ P.yaw -= e.movementX * .0022; P.pitch = clamp(P.pitch - e.movementY * .0022, -1.4, 1.4); }
+  mx = (e.clientX / window.innerWidth) * 2 - 1; my = (e.clientY / window.innerHeight) * 2 - 1;
+});
+window.addEventListener('blur', () => { mouseDown = false; for (const k in keys) keys[k] = false; });
+function toggleCargo(){
+  if (C.carried){ if (P.grab) return; setCarried(false, P.pos.x - Math.sin(P.yaw) * -1.2 * -1, P.pos.z - Math.cos(P.yaw) * 1.2); collide(C.pos, .3); C.mesh.position.set(C.pos.x, .22, C.pos.z); }
+  else if (Math.hypot(P.pos.x - C.pos.x, P.pos.z - C.pos.z) < 2.6 && !P.grab) setCarried(true);
+}
+
+/* =====================  JUGADOR  ===================== */
+function updatePlayer(dt){
+  if (!P.alive) return;
+  // cámara con flechas o con el ratón si no hay bloqueo
+  const turn = (keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0), look = (keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0);
+  P.yaw += turn * 2.2 * dt; P.pitch = clamp(P.pitch + look * 1.6 * dt, -1.4, 1.4);
+  if (lockFailed && !document.pointerLockElement){
+    if (Math.abs(mx) > .12) P.yaw -= mx * 2.6 * dt;
+    if (Math.abs(my) > .2) P.pitch = clamp(P.pitch - my * 1.2 * dt, -1.2, 1.2);
+  }
+  let f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  let sp = 5.2 * role.speed * (keys.ShiftLeft || keys.ShiftRight ? 1.4 : 1) * (C.carried ? .82 : 1);
+  if (P.grab){
+    const g = P.grab; g.t += dt;
+    const dx = g.e.pos.x - P.pos.x, dz = g.e.pos.z - P.pos.z, d = Math.hypot(dx, dz);
+    if (d > 1.9){ P.pos.x += dx / d * 6 * dt; P.pos.z += dz / d * 6 * dt; }
+    else { g.crush -= dt; if (g.crush <= 0){ g.crush = .6; hurtP(6); } }
+    const pa = g.line.geometry.attributes.position;
+    pa.setXYZ(0, g.e.pos.x, 1.4 * g.e.s, g.e.pos.z); pa.setXYZ(1, P.pos.x, 1.2, P.pos.z); pa.needsUpdate = true;
+    if (g.t > 7 || g.e.dead){ releaseGrab(); }
+    f = 0; s = 0;
+  }
+  const len = Math.hypot(f, s);
+  if (len > 0){
+    f /= len; s /= len;
+    P.pos.x += (-Math.sin(P.yaw) * f + Math.cos(P.yaw) * s) * sp * dt;
+    P.pos.z += (-Math.cos(P.yaw) * f - Math.sin(P.yaw) * s) * sp * dt;
+    P.bob += dt * 9 * (sp / 5.2);
+  }
+  collide(P.pos, .4);
+  if (mouseDown || keys.Space) shoot();
+  P.kick = Math.max(0, P.kick - dt * .6);
+  shake = Math.max(0, shake - dt * .9);
+}
+function updateCamera(){
+  camera.position.set(P.pos.x + rand(-1, 1) * shake * .2, 1.6 + Math.sin(P.bob) * .035 + rand(-1, 1) * shake * .2, P.pos.z);
+  camera.rotation.set(P.pitch, P.yaw, shake * .1 * Math.sin(time * 40));
+  gun.position.z = -.5 + P.kick; gun.position.y = -.24 + Math.sin(P.bob) * .006;
+  const w = WEAPONS[P.weapon];
+  gun.scale.z = w.pellets > 1 ? 1.5 : 1;
+}
+
+/* =====================  BUCLE  ===================== */
+const clock = new THREE.Clock();
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), .05);
+  if (state === 'play'){
+    time += dt;
+    updatePlayer(dt);
+    if (state === 'play') updateEnemies(dt);
+    if (state === 'play') updateBots(dt);
+    if (state === 'play') updateProps(dt);
+    if (state === 'play') updateDirector(dt);
+    if (state === 'play') updateExtraction(dt);
+    updateCamera();
+    if (state === 'play') updateHud(dt);
+  }
+  renderer.render(scene, camera);
+}
+
+/* =====================  UI  ===================== */
+(function initUi(){
+  const wrap = $('roles');
+  ROLES.forEach(r => {
+    const b = document.createElement('button'); b.className = 'role';
+    b.innerHTML = '<b><span class="sw" style="background:#' + r.color.toString(16).padStart(6, '0') + '"></span>' + r.name + '</b><em>' + r.title + '</em>' + r.perk + '<br><span style="color:#8fa8a2">Salud ' + r.hp + '</span>';
+    b.onclick = () => {
+      selRole = r; wrap.querySelectorAll('.role').forEach(x => x.classList.remove('sel')); b.classList.add('sel');
+      $('btnStart').disabled = false; $('selHint').textContent = r.name + ' · ' + r.title;
+    };
+    wrap.appendChild(b);
+  });
+  $('btnStart').onclick = startGame;
+  $('btnGo').onclick = () => beginSector(sectorIdx);
+  $('qNext').onclick = () => {
+    $('quiz').classList.remove('on');
+    if (sectorIdx >= SECTORS.length - 1) victory();
+    else { sectorIdx++; showBrief(sectorIdx); }
+  };
+  $('btnResume').onclick = resumeGame;
+  $('btnRetry').onclick = () => { $('end').classList.remove('on'); beginSector(sectorIdx, true); };
+  $('btnMenu').onclick = () => { $('end').classList.remove('on'); state = 'menu'; sectorIdx = 0; $('menu').classList.add('on'); };
+})();
+frame();
+</script>
+</body>
+</html>
